@@ -44,39 +44,64 @@
   <script src="js/api.js"></script>
   <script src="js/shared.js"></script>
   <script>
-    // 2. Bagian fungsi JavaScript yang Diubah (Di dalam tag <script>)
     document.addEventListener("DOMContentLoaded", async () => {
-      await AppState.init();
-      lucide.createIcons();
+      if (!sessionStorage.getItem("init_fresh")) {
+        sessionStorage.clear();
+        sessionStorage.setItem("init_fresh", "true");
+      }
 
-      const promosi = AppState.getPromosi().slice(0, 5); // Mengambil maksimal 5 promo agar pas 1 baris laptop
-      const produk = AppState.getProduk();
+      await AppState.init();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      const promosi = AppState.getPromosi() || [];
+      const produk = AppState.getProduk() || [];
       const container = document.getElementById("highlight-container");
+      
+      if (!container) return;
+      container.innerHTML = "";
 
       if(promosi.length === 0) {
-        container.innerHTML = '<p class="text-gray-500 text-center col-span-2 lg:col-span-5">Belum ada promosi aktif.</p>';
+        container.innerHTML = '<p class="text-gray-500 text-center col-span-2 lg:col-span-5 py-6">Belum ada promosi aktif saat ini.</p>';
         return;
       }
 
-      promosi.forEach((promo, i) => {
-        const prod = produk.find(p => p.id_produk === promo.id_produk) || {};
+      // Tampilkan maksimal 5 promo teratas agar pas di layar laptop
+      const activePromos = promosi.slice(0, 5);
+
+      activePromos.forEach((promo, i) => {
+        // Ambil relasi produk
+        const promoProdId = promo.id_produk || promo.id_produck;
+        const prod = produk.find(p => (p.id_produk || p.id_produck) == promoProdId) || {};
+        
+        // Pilihan fallback properti database
+        const judul_promo = promo.judul_promosi || promo.nama_promosi || "Promo Menarik";
+        const link_gambar = prod.gambar || prod.url_gambar || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30';
+        const diskon_nilai = promo.diskon || promo.diskon_persen || 0;
+        const deskripsi_promo = promo.deskripsi || "Dapatkan harga spesial sebelum masa berlaku habis!";
+        const tgl_selesai = promo.tanggal_selesai || promo.selesai;
+
         container.innerHTML += `
-          <div class="glass-card rounded-xl overflow-hidden p-3 flex flex-col gap-2 text-sm">
-            <div class="relative">
-              <img src="${prod.gambar || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30'}" class="w-full h-28 sm:h-36 lg:h-40 object-cover rounded-lg" loading="lazy">
-              <span class="absolute top-2 left-2 bg-red-500 font-bold px-2 py-0.5 text-[9px] rounded-md shadow-lg">DISKON ${promo.diskon}%</span>
+          <div class="glass-panel bg-gray-900/40 backdrop-blur-md rounded-xl overflow-hidden p-3 flex flex-col gap-2 text-sm border border-gray-800">
+            <div class="relative bg-gray-950 rounded-lg overflow-hidden">
+              <img src="${link_gambar}" class="w-full h-28 sm:h-36 lg:h-40 object-cover" onerror="this.src='https://images.unsplash.com/photo-1523275335684-37898b6baf30';">
+              <span class="absolute top-2 left-2 bg-red-500 font-bold px-2 py-0.5 text-[9px] rounded-md shadow-lg text-white">-${diskon_nilai}%</span>
             </div>
-            <div>
-              <h4 class="font-bold text-xs lg:text-sm text-white line-clamp-1">${promo.judul_promosi}</h4>
-              <p class="text-gray-400 text-[11px] line-clamp-1">${promo.deskripsi}</p>
-            </div>
-            <div class="mt-auto pt-2 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <div id="cd-landing-${i}"></div>
-              <a href="detail-promosi.html?id=${promo.id_promosi}" class="text-[11px] font-semibold text-neon-cyan hover:underline">Detail</a>
+            <div class="flex-1 flex flex-col justify-between">
+              <div>
+                <h4 class="font-bold text-xs lg:text-sm text-white line-clamp-1">${judul_promo}</h4>
+                <p class="text-gray-400 text-[11px] line-clamp-1">${deskripsi_promo}</p>
+              </div>
+              <div class="mt-3 pt-2 border-t border-gray-800/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div id="cd-landing-${i}" class="text-[10px] text-cyan-400 font-mono"></div>
+                <a href="detail-promosi.html?id=${promo.id_promosi || promo.id}" class="text-[11px] font-semibold text-cyan-400 hover:underline ml-auto sm:ml-0">Detail</a>
+              </div>
             </div>
           </div>
         `;
-        setTimeout(() => initCountdown(promo.tanggal_selesai, `cd-landing-${i}`), 50);
+        
+        if (typeof initCountdown === 'function' && tgl_selesai) {
+          setTimeout(() => initCountdown(tgl_selesai, `cd-landing-${i}`), 50);
+        }
       });
     });
   </script>
