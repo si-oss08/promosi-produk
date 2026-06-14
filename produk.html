@@ -32,38 +32,59 @@
   <script src="js/api.js"></script>
   <script src="js/shared.js"></script>
   <script>
-    // 2. Bagian fungsi JavaScript yang Diubah (Di dalam tag <script>)
     document.addEventListener("DOMContentLoaded", async () => {
+      // Memastikan cache dibersihkan dulu saat pertama kali load agar data fresh
+      if (!sessionStorage.getItem("init_fresh")) {
+        sessionStorage.clear();
+        sessionStorage.setItem("init_fresh", "true");
+      }
+      
       await AppState.init();
-      lucide.createIcons();
-      renderProduk(AppState.getProduk());
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+      
+      // Ambil data dan langsung jalankan render
+      const dataProduk = AppState.getProduk();
+      renderProduk(dataProduk);
     });
 
     function renderProduk(list) {
       const container = document.getElementById("produk-grid");
-      const promosi = AppState.getPromosi();
+      if (!container) return;
+      
+      const promosi = AppState.getPromosi() || [];
       container.innerHTML = "";
 
-      if(list.length === 0) {
-        container.innerHTML = '<p class="text-gray-500 text-center col-span-2 lg:col-span-5 py-12">Produk tidak ditemukan.</p>';
+      if(!list || list.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center col-span-2 lg:col-span-5 py-12">Produk tidak ditemukan atau data kosong.</p>';
         return;
       }
 
       list.forEach(p => {
-        const promo = promosi.find(pr => pr.id_produk === p.id_produk);
+        // Antisipasi toleransi perbedaan nama kolom database (indonesia / inggris)
+        const id_prod = p.id_produk || p.id_produck || p.id;
+        const nama_prod = p.nama_produk || p.nama_produck || p.nama || "Tanpa Nama";
+        const link_gambar = p.gambar || p.url_gambar || p.image || "https://images.unsplash.com/photo-1523275335684-37898b6baf30";
+        const harga_prod = p.harga || p.price || 0;
+        const deskripsi_prod = p.deskripsi || p.description || "";
+
+        // Cari apakah produk ini memiliki promo aktif
+        const promo = promosi.find(pr => (pr.id_produk || pr.id_produck) == id_prod);
+        
         container.innerHTML += `
-          <div class="glass-card rounded-xl overflow-hidden p-3 flex flex-col gap-2 text-sm">
-            <div class="relative bg-gray-900 rounded-lg overflow-hidden">
-              <img src="${p.gambar}" class="w-full h-28 sm:h-36 lg:h-40 object-cover" loading="lazy">
-              ${promo ? `<span class="absolute top-2 right-2 bg-purple-600 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md">${promo.diskon}% OFF</span>` : ''}
+          <div class="glass-panel bg-gray-900/40 backdrop-blur-md rounded-xl overflow-hidden p-3 flex flex-col gap-2 text-sm border border-gray-800">
+            <div class="relative bg-gray-950 rounded-lg overflow-hidden aspect-square sm:aspect-auto">
+              <img src="${link_gambar}" class="w-full h-28 sm:h-36 lg:h-40 object-cover" onerror="this.src='https://images.unsplash.com/photo-1523275335684-37898b6baf30';">
+              ${promo ? `<span class="absolute top-2 right-2 bg-purple-600 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md text-white">${promo.diskon || promo.diskon_persen}% OFF</span>` : ''}
             </div>
-            <div>
-              <h3 class="font-bold text-white text-xs lg:text-sm line-clamp-1">${p.nama_produk}</h3>
-              <p class="text-gray-400 text-[11px] mt-0.5 line-clamp-1">${p.deskripsi}</p>
-            </div>
-            <div class="mt-auto flex flex-col xl:flex-row justify-between items-start xl:items-center gap-1.5 pt-1">
-              <span class="text-neon-cyan font-bold text-xs lg:text-sm">Rp ${Number(p.harga).toLocaleString('id-ID')}</span>
-              ${promo ? `<a href="detail-promosi.html?id=${promo.id_promosi}" class="w-full xl:w-auto text-center px-2 py-1 text-[10px] rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/40 transition">Promo</a>` : ''}
+            <div class="flex-1 flex flex-col justify-between">
+              <div>
+                <h3 class="font-bold text-white text-xs lg:text-sm line-clamp-1">${nama_prod}</h3>
+                <p class="text-gray-400 text-[11px] mt-0.5 line-clamp-1">${deskripsi_prod}</p>
+              </div>
+              <div class="mt-2 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-1.5 pt-1">
+                <span class="text-cyan-400 font-bold text-xs lg:text-sm">Rp ${Number(harga_prod).toLocaleString('id-ID')}</span>
+                ${promo ? `<a href="detail-promosi.html?id=${promo.id_promosi || promo.id}" class="w-full xl:w-auto text-center px-2 py-1 text-[10px] rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/40 transition">Promo</a>` : ''}
+              </div>
             </div>
           </div>
         `;
@@ -71,7 +92,11 @@
     }
 
     function performSearch(query) {
-      const filtered = AppState.getProduk().filter(p => p.nama_produk.toLowerCase().includes(query.toLowerCase()));
+      const allProducts = AppState.getProduk() || [];
+      const filtered = allProducts.filter(p => {
+        const name = p.nama_produk || p.nama_produck || "";
+        return name.toLowerCase().includes(query.toLowerCase());
+      });
       renderProduk(filtered);
     }
   </script>
