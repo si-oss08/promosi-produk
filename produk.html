@@ -26,56 +26,55 @@
       <input type="text" id="search-input" placeholder="Cari nama produk..." class="glass-card w-full md:w-80 px-4 py-2.5 rounded-lg border border-gray-700 focus:outline-none focus:border-cyan-500 text-sm text-gray-200">
     </div>
 
-    <div id="produk-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4"></div>
+    <div id="produk-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+      </div>
   </main>
 
-  <script src="js/shared.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/shared.js"></script>
   <script>
-    let allProducts = [];
-    async function loadProduk() {
-      const grid = document.getElementById("produk-grid");
-      grid.innerHTML = createCardSkeleton().repeat(4);
-      allProducts = await API.get("getProduk") || [];
-      renderProducts(allProducts);
-    }
+    // 2. Bagian fungsi JavaScript yang Diubah (Di dalam tag <script>)
+    document.addEventListener("DOMContentLoaded", async () => {
+      await AppState.init();
+      lucide.createIcons();
+      renderProduk(AppState.getProduk());
+    });
 
-    function renderProducts(products) {
-      const grid = document.getElementById("produk-grid");
-      grid.innerHTML = "";
-      if(products.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500">Produk tidak ditemukan.</div>`;
+    function renderProduk(list) {
+      const container = document.getElementById("produk-grid");
+      const promosi = AppState.getPromosi();
+      container.innerHTML = "";
+
+      if(list.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center col-span-2 lg:col-span-5 py-12">Produk tidak ditemukan.</p>';
         return;
       }
-      products.forEach(p => {
-        const card = document.createElement("div");
-        card.className = "glass-card rounded-xl overflow-hidden flex flex-col justify-between border border-gray-800";
-        card.innerHTML = `
-          <div class="aspect-square bg-gray-900 overflow-hidden">
-            <img src="${p.gambar}" class="w-full h-full object-cover" loading="lazy">
-          </div>
-          <div class="p-4 flex-1 flex flex-col justify-between">
-            <div>
-              <h3 class="font-bold text-sm text-white line-clamp-1">${p.nama_produk}</h3>
-              <p class="text-xs text-gray-400 mt-1 line-clamp-2">${p.deskripsi}</p>
+
+      list.forEach(p => {
+        const promo = promosi.find(pr => pr.id_produk === p.id_produk);
+        container.innerHTML += `
+          <div class="glass-card rounded-xl overflow-hidden p-3 flex flex-col gap-2 text-sm">
+            <div class="relative bg-gray-900 rounded-lg overflow-hidden">
+              <img src="${p.gambar}" class="w-full h-28 sm:h-36 lg:h-40 object-cover" loading="lazy">
+              ${promo ? `<span class="absolute top-2 right-2 bg-purple-600 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md">${promo.diskon}% OFF</span>` : ''}
             </div>
-            <div class="mt-4 pt-3 border-t border-gray-800/80">
-              <span class="text-xs font-medium text-gray-500">Harga Terbuka</span>
-              <p class="text-sm font-bold text-cyan-400">Rp ${Number(p.harga).toLocaleString('id-ID')}</p>
+            <div>
+              <h3 class="font-bold text-white text-xs lg:text-sm line-clamp-1">${p.nama_produk}</h3>
+              <p class="text-gray-400 text-[11px] mt-0.5 line-clamp-1">${p.deskripsi}</p>
+            </div>
+            <div class="mt-auto flex flex-col xl:flex-row justify-between items-start xl:items-center gap-1.5 pt-1">
+              <span class="text-neon-cyan font-bold text-xs lg:text-sm">Rp ${Number(p.harga).toLocaleString('id-ID')}</span>
+              ${promo ? `<a href="detail-promosi.html?id=${promo.id_promosi}" class="w-full xl:w-auto text-center px-2 py-1 text-[10px] rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/40 transition">Promo</a>` : ''}
             </div>
           </div>
         `;
-        grid.appendChild(card);
       });
     }
 
-    document.getElementById("search-input").addEventListener("input", (e) => {
-      const keyword = e.target.value.toLowerCase();
-      const filtered = allProducts.filter(p => p.nama_produk.toLowerCase().includes(keyword));
-      renderProducts(filtered);
-    });
-
-    loadProduk();
+    function performSearch(query) {
+      const filtered = AppState.getProduk().filter(p => p.nama_produk.toLowerCase().includes(query.toLowerCase()));
+      renderProduk(filtered);
+    }
   </script>
 </body>
 </html>
